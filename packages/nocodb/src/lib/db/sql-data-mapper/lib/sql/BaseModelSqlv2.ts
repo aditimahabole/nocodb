@@ -390,8 +390,11 @@ class BaseModelSqlv2 {
         dbDriver: this.dbDriver,
       });
       await parentTable.getColumns();
+      
+      const childTn = this.getTnPath(childTable);
+      const parentTn = this.getTnPath(parentTable);
 
-      const qb = this.dbDriver(childTable.table_name);
+      const qb = this.dbDriver(childTn);
       await childModel.selectObject({ qb });
 
       const childQb = this.dbDriver.queryBuilder().from(
@@ -403,7 +406,7 @@ class BaseModelSqlv2 {
                 .select(this.dbDriver.raw('? as ??', [p, GROUP_COL]))
                 .whereIn(
                   chilCol.column_name,
-                  this.dbDriver(parentTable.table_name)
+                  this.dbDriver(parentTn)
                     .select(parentCol.column_name)
                     // .where(parentTable.primaryKey.cn, p)
                     .where(_wherePk(parentTable.primaryKeys, p))
@@ -456,13 +459,16 @@ class BaseModelSqlv2 {
       const parentTable = await parentCol.getModel();
       await parentTable.getColumns();
 
+      const childTn = this.getTnPath(childTable);
+      const parentTn = this.getTnPath(parentTable);
+
       const children = await this.dbDriver.unionAll(
         ids.map((p) => {
-          const query = this.dbDriver(childTable.table_name)
+          const query = this.dbDriver(childTn)
             .count(`${chilCol?.column_name} as count`)
             .whereIn(
               chilCol.column_name,
-              this.dbDriver(parentTable.table_name)
+              this.dbDriver(parentTn)
                 .select(parentCol.column_name)
                 // .where(parentTable.primaryKey.cn, p)
                 .where(_wherePk(parentTable.primaryKeys, p))
@@ -504,11 +510,14 @@ class BaseModelSqlv2 {
       });
       await parentTable.getColumns();
 
-      const qb = this.dbDriver(childTable.table_name);
+      const childTn = this.getTnPath(childTable);
+      const parentTn = this.getTnPath(parentTable);
+
+      const qb = this.dbDriver(childTn);
 
       qb.whereIn(
         chilCol.column_name,
-        this.dbDriver(parentTable.table_name)
+        this.dbDriver(parentTn)
           .select(parentCol.column_name)
           // .where(parentTable.primaryKey.cn, p)
           .where(_wherePk(parentTable.primaryKeys, id))
@@ -554,11 +563,14 @@ class BaseModelSqlv2 {
       const parentTable = await parentCol.getModel();
       await parentTable.getColumns();
 
-      const query = this.dbDriver(childTable.table_name)
+      const childTn = this.getTnPath(childTable);
+      const parentTn = this.getTnPath(parentTable);
+
+      const query = this.dbDriver(childTn)
         .count(`${chilCol?.column_name} as count`)
         .whereIn(
           chilCol.column_name,
-          this.dbDriver(parentTable.table_name)
+          this.dbDriver(parentTn)
             .select(parentCol.column_name)
             .where(_wherePk(parentTable.primaryKeys, id))
         )
@@ -585,7 +597,8 @@ class BaseModelSqlv2 {
 
     // const tn = this.model.tn;
     // const cn = (await relColOptions.getChildColumn()).title;
-    const vtn = (await relColOptions.getMMModel()).table_name;
+    const mmTable = await relColOptions.getMMModel();
+    const vtn = this.getTnPath(mmTable);
     const vcn = (await relColOptions.getMMChildColumn()).column_name;
     const vrcn = (await relColOptions.getMMParentColumn()).column_name;
     const rcn = (await relColOptions.getParentColumn()).column_name;
@@ -597,7 +610,11 @@ class BaseModelSqlv2 {
       dbDriver: this.dbDriver,
       model: childTable,
     });
-    const rtn = childTable.table_name;
+
+    const childTn = this.getTnPath(childTable);
+    const parentTn = this.getTnPath(parentTable);
+
+    const rtn = childTn;
     const rtnId = childTable.id;
 
     const qb = this.dbDriver(rtn).join(vtn, `${vtn}.${vrcn}`, `${rtn}.${rcn}`);
@@ -609,7 +626,7 @@ class BaseModelSqlv2 {
           .clone()
           .whereIn(
             `${vtn}.${vcn}`,
-            this.dbDriver(parentTable.table_name)
+            this.dbDriver(parentTn)
               .select(cn)
               // .where(parentTable.primaryKey.cn, id)
               .where(_wherePk(parentTable.primaryKeys, id))
@@ -655,7 +672,8 @@ class BaseModelSqlv2 {
 
     // const tn = this.model.tn;
     // const cn = (await relColOptions.getChildColumn()).title;
-    const vtn = (await relColOptions.getMMModel()).table_name;
+    const mmTable = await relColOptions.getMMModel();
+    const vtn = this.getTnPath(mmTable);
     const vcn = (await relColOptions.getMMChildColumn()).column_name;
     const vrcn = (await relColOptions.getMMParentColumn()).column_name;
     const rcn = (await relColOptions.getParentColumn()).column_name;
@@ -667,14 +685,18 @@ class BaseModelSqlv2 {
       dbDriver: this.dbDriver,
       model: childTable,
     });
-    const rtn = childTable.table_name;
+
+    const childTn = this.getTnPath(childTable);
+    const parentTn = this.getTnPath(parentTable);
+
+    const rtn = childTn;
     const rtnId = childTable.id;
 
     const qb = this.dbDriver(rtn)
       .join(vtn, `${vtn}.${vrcn}`, `${rtn}.${rcn}`)
       .whereIn(
         `${vtn}.${vcn}`,
-        this.dbDriver(parentTable.table_name)
+        this.dbDriver(parentTn)
           .select(cn)
           // .where(parentTable.primaryKey.cn, id)
           .where(_wherePk(parentTable.primaryKeys, parentId))
@@ -703,15 +725,20 @@ class BaseModelSqlv2 {
     const relColOptions =
       (await relColumn.getColOptions()) as LinkToAnotherRecordColumn;
 
-    const vtn = (await relColOptions.getMMModel()).table_name;
+    const mmTable = await relColOptions.getMMModel();
+    const vtn = this.getTnPath(mmTable);
     const vcn = (await relColOptions.getMMChildColumn()).column_name;
     const vrcn = (await relColOptions.getMMParentColumn()).column_name;
     const rcn = (await relColOptions.getParentColumn()).column_name;
     const cn = (await relColOptions.getChildColumn()).column_name;
     const childTable = await (await relColOptions.getParentColumn()).getModel();
-    const rtn = childTable.table_name;
     const parentTable = await (await relColOptions.getChildColumn()).getModel();
     await parentTable.getColumns();
+
+    const childTn = this.getTnPath(childTable);
+    const parentTn = this.getTnPath(parentTable);
+
+    const rtn = childTn;
 
     const qb = this.dbDriver(rtn)
       .join(vtn, `${vtn}.${vrcn}`, `${rtn}.${rcn}`)
@@ -727,7 +754,7 @@ class BaseModelSqlv2 {
           .clone()
           .whereIn(
             `${vtn}.${vcn}`,
-            this.dbDriver(parentTable.table_name)
+            this.dbDriver(parentTn)
               .select(cn)
               // .where(parentTable.primaryKey.cn, id)
               .where(_wherePk(parentTable.primaryKeys, id))
@@ -750,15 +777,20 @@ class BaseModelSqlv2 {
     const relColOptions =
       (await relColumn.getColOptions()) as LinkToAnotherRecordColumn;
 
-    const vtn = (await relColOptions.getMMModel()).table_name;
+    const mmTable = await relColOptions.getMMModel();
+    const vtn = this.getTnPath(mmTable);
     const vcn = (await relColOptions.getMMChildColumn()).column_name;
     const vrcn = (await relColOptions.getMMParentColumn()).column_name;
     const rcn = (await relColOptions.getParentColumn()).column_name;
     const cn = (await relColOptions.getChildColumn()).column_name;
     const childTable = await (await relColOptions.getParentColumn()).getModel();
-    const rtn = childTable.table_name;
     const parentTable = await (await relColOptions.getChildColumn()).getModel();
     await parentTable.getColumns();
+
+    const childTn = this.getTnPath(childTable);
+    const parentTn = this.getTnPath(parentTable);
+
+    const rtn = childTn;
 
     const qb = this.dbDriver(rtn)
       .join(vtn, `${vtn}.${vrcn}`, `${rtn}.${rcn}`)
@@ -768,7 +800,7 @@ class BaseModelSqlv2 {
       .count(`${vtn}.${vcn}`, { as: 'count' })
       .whereIn(
         `${vtn}.${vcn}`,
-        this.dbDriver(parentTable.table_name)
+        this.dbDriver(parentTn)
           .select(cn)
           // .where(parentTable.primaryKey.cn, id)
           .where(_wherePk(parentTable.primaryKeys, parentId))
@@ -792,7 +824,8 @@ class BaseModelSqlv2 {
     const relColOptions =
       (await relColumn.getColOptions()) as LinkToAnotherRecordColumn;
 
-    const vtn = (await relColOptions.getMMModel()).table_name;
+    const mmTable = await relColOptions.getMMModel();
+    const vtn = this.getTnPath(mmTable);
     const vcn = (await relColOptions.getMMChildColumn()).column_name;
     const vrcn = (await relColOptions.getMMParentColumn()).column_name;
     const rcn = (await relColOptions.getParentColumn()).column_name;
@@ -800,7 +833,11 @@ class BaseModelSqlv2 {
     const childTable = await (await relColOptions.getParentColumn()).getModel();
     const parentTable = await (await relColOptions.getChildColumn()).getModel();
     await parentTable.getColumns();
-    const rtn = childTable.table_name;
+
+    const childTn = this.getTnPath(childTable);
+    const parentTn = this.getTnPath(parentTable);
+
+    const rtn = childTn;
     const qb = this.dbDriver(rtn)
       .count(`*`, { as: 'count' })
       .where((qb) => {
@@ -811,7 +848,7 @@ class BaseModelSqlv2 {
             .join(vtn, `${rtn}.${rcn}`, `${vtn}.${vrcn}`)
             .whereIn(
               `${vtn}.${vcn}`,
-              this.dbDriver(parentTable.table_name)
+              this.dbDriver(parentTn)
                 .select(cn)
                 // .where(parentTable.primaryKey.cn, pid)
                 .where(_wherePk(parentTable.primaryKeys, pid))
@@ -838,7 +875,8 @@ class BaseModelSqlv2 {
     const relColOptions =
       (await relColumn.getColOptions()) as LinkToAnotherRecordColumn;
 
-    const vtn = (await relColOptions.getMMModel()).table_name;
+    const mmTable = await relColOptions.getMMModel();
+    const vtn = this.getTnPath(mmTable);
     const vcn = (await relColOptions.getMMChildColumn()).column_name;
     const vrcn = (await relColOptions.getMMParentColumn()).column_name;
     const rcn = (await relColOptions.getParentColumn()).column_name;
@@ -850,7 +888,11 @@ class BaseModelSqlv2 {
     });
     const parentTable = await (await relColOptions.getChildColumn()).getModel();
     await parentTable.getColumns();
-    const rtn = childTable.table_name;
+
+    const childTn = this.getTnPath(childTable);
+    const parentTn = this.getTnPath(parentTable);
+
+    const rtn = childTn;
 
     const qb = this.dbDriver(rtn).where((qb) =>
       qb
@@ -861,7 +903,7 @@ class BaseModelSqlv2 {
             .join(vtn, `${rtn}.${rcn}`, `${vtn}.${vrcn}`)
             .whereIn(
               `${vtn}.${vcn}`,
-              this.dbDriver(parentTable.table_name)
+              this.dbDriver(parentTn)
                 .select(cn)
                 // .where(parentTable.primaryKey.cn, pid)
                 .where(_wherePk(parentTable.primaryKeys, pid))
@@ -917,8 +959,12 @@ class BaseModelSqlv2 {
     const parentTable = await (
       await relColOptions.getParentColumn()
     ).getModel();
-    const tn = childTable.table_name;
-    const rtn = parentTable.table_name;
+
+    const childTn = this.getTnPath(childTable);
+    const parentTn = this.getTnPath(parentTable);
+
+    const tn = childTn;
+    const rtn = parentTn;
     await parentTable.getColumns();
 
     const qb = this.dbDriver(tn)
@@ -965,8 +1011,11 @@ class BaseModelSqlv2 {
     });
     await parentTable.getColumns();
 
-    const tn = childTable.table_name;
-    const rtn = parentTable.table_name;
+    const childTn = this.getTnPath(childTable);
+    const parentTn = this.getTnPath(parentTable);
+
+    const tn = childTn;
+    const rtn = parentTn;
 
     const qb = this.dbDriver(tn).where((qb) => {
       qb.whereNotIn(
@@ -1026,8 +1075,11 @@ class BaseModelSqlv2 {
     const cn = (await relColOptions.getChildColumn()).column_name;
     const childTable = await (await relColOptions.getChildColumn()).getModel();
 
-    const rtn = parentTable.table_name;
-    const tn = childTable.table_name;
+    const childTn = this.getTnPath(childTable);
+    const parentTn = this.getTnPath(parentTable);
+
+    const rtn = parentTn;
+    const tn = childTn;
     await childTable.getColumns();
 
     const qb = this.dbDriver(rtn)
@@ -1072,8 +1124,12 @@ class BaseModelSqlv2 {
       dbDriver: this.dbDriver,
       model: parentTable,
     });
-    const rtn = parentTable.table_name;
-    const tn = childTable.table_name;
+
+    const childTn = this.getTnPath(childTable);
+    const parentTn = this.getTnPath(parentTable);
+
+    const rtn = parentTn;
+    const tn = childTn;
     await childTable.getColumns();
 
     const qb = this.dbDriver(rtn).where((qb) => {
@@ -1533,13 +1589,17 @@ class BaseModelSqlv2 {
     return _wherePk(this.model.primaryKeys, id);
   }
 
-  public get tnPath() {
+  private getTnPath(tb: Model) {
     const schema = (this.dbDriver as any).searchPath?.();
     const table =
-      this.isMssql && schema
-        ? this.dbDriver.raw('??.??', [schema, this.model.table_name])
-        : this.model.table_name;
+    this.isMssql && schema
+      ? this.dbDriver.raw('??.??', [schema, tb.table_name])
+      : tb.table_name;
     return table;
+  }
+
+  public get tnPath() {
+    return this.getTnPath(this.model);
   }
 
   get isSqlite() {
@@ -2194,6 +2254,9 @@ class BaseModelSqlv2 {
     await childTable.getColumns();
     await parentTable.getColumns();
 
+    const childTn = this.getTnPath(childTable);
+    const parentTn = this.getTnPath(parentTable);
+
     switch (colOptions.type) {
       case RelationTypes.MANY_TO_MANY:
         {
@@ -2201,12 +2264,14 @@ class BaseModelSqlv2 {
           const vParentCol = await colOptions.getMMParentColumn();
           const vTable = await colOptions.getMMModel();
 
-          await this.dbDriver(vTable.table_name).insert({
-            [vParentCol.column_name]: this.dbDriver(parentTable.table_name)
+          const vTn = this.getTnPath(vTable);
+
+          await this.dbDriver(vTn).insert({
+            [vParentCol.column_name]: this.dbDriver(parentTn)
               .select(parentColumn.column_name)
               .where(_wherePk(parentTable.primaryKeys, childId))
               .first(),
-            [vChildCol.column_name]: this.dbDriver(childTable.table_name)
+            [vChildCol.column_name]: this.dbDriver(childTn)
               .select(childColumn.column_name)
               .where(_wherePk(childTable.primaryKeys, rowId))
               .first(),
@@ -2215,10 +2280,10 @@ class BaseModelSqlv2 {
         break;
       case RelationTypes.HAS_MANY:
         {
-          await this.dbDriver(childTable.table_name)
+          await this.dbDriver(childTn)
             .update({
               [childColumn.column_name]: this.dbDriver.from(
-                this.dbDriver(parentTable.table_name)
+                this.dbDriver(parentTn)
                   .select(parentColumn.column_name)
                   .where(_wherePk(parentTable.primaryKeys, rowId))
                   .first()
@@ -2230,10 +2295,10 @@ class BaseModelSqlv2 {
         break;
       case RelationTypes.BELONGS_TO:
         {
-          await this.dbDriver(childTable.table_name)
+          await this.dbDriver(childTn)
             .update({
               [childColumn.column_name]: this.dbDriver.from(
-                this.dbDriver(parentTable.table_name)
+                this.dbDriver(parentTn)
                   .select(parentColumn.column_name)
                   .where(_wherePk(parentTable.primaryKeys, childId))
                   .first()
@@ -2289,6 +2354,9 @@ class BaseModelSqlv2 {
     await childTable.getColumns();
     await parentTable.getColumns();
 
+    const childTn = this.getTnPath(childTable);
+    const parentTn = this.getTnPath(parentTable);
+
     switch (colOptions.type) {
       case RelationTypes.MANY_TO_MANY:
         {
@@ -2296,13 +2364,15 @@ class BaseModelSqlv2 {
           const vParentCol = await colOptions.getMMParentColumn();
           const vTable = await colOptions.getMMModel();
 
-          await this.dbDriver(vTable.table_name)
+          const vTn = this.getTnPath(vTable);
+
+          await this.dbDriver(vTn)
             .where({
-              [vParentCol.column_name]: this.dbDriver(parentTable.table_name)
+              [vParentCol.column_name]: this.dbDriver(parentTn)
                 .select(parentColumn.column_name)
                 .where(_wherePk(parentTable.primaryKeys, childId))
                 .first(),
-              [vChildCol.column_name]: this.dbDriver(childTable.table_name)
+              [vChildCol.column_name]: this.dbDriver(childTn)
                 .select(childColumn.column_name)
                 .where(_wherePk(childTable.primaryKeys, rowId))
                 .first(),
@@ -2312,7 +2382,7 @@ class BaseModelSqlv2 {
         break;
       case RelationTypes.HAS_MANY:
         {
-          await this.dbDriver(childTable.table_name)
+          await this.dbDriver(childTn)
             // .where({
             //   [childColumn.cn]: this.dbDriver(parentTable.tn)
             //     .select(parentColumn.cn)
@@ -2325,7 +2395,7 @@ class BaseModelSqlv2 {
         break;
       case RelationTypes.BELONGS_TO:
         {
-          await this.dbDriver(childTable.table_name)
+          await this.dbDriver(childTn)
             // .where({
             //   [childColumn.cn]: this.dbDriver(parentTable.tn)
             //     .select(parentColumn.cn)
