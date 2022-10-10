@@ -5,6 +5,7 @@ import { ActiveCellInj, ColumnInj, IsKanbanInj, ReadonlyInj, computed, inject, r
 
 interface Props {
   modelValue?: string | undefined
+  rowIndex?: number
 }
 
 const { modelValue } = defineProps<Props>()
@@ -80,7 +81,13 @@ watch(isOpen, (n, _o) => {
     @keydown="handleKeys"
     @click="isOpen = !isOpen"
   >
-    <a-select-option v-for="op of options" :key="op.title" :value="op.title" @click.stop>
+    <a-select-option
+      v-for="op of options"
+      :key="op.title"
+      :value="op.title"
+      :pw-data="`select-option-${column.title}-${rowIndex}`"
+      @click.stop
+    >
       <a-tag class="rounded-tag" :color="op.color">
         <span class="text-slate-500" :class="{ 'text-sm': isKanban }">{{ op.title }}</span>
       </a-tag>
